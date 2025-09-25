@@ -1,11 +1,10 @@
-// Arquivo: src/components/2d/ChoppMug2DViewer.tsx
-// Descrição: Componente para a visualização 2D da Caneca de Chopp (sem alteração de cor).
+// Arquivo: src/components/2d/BabyBody2DViewer.tsx
+// Descrição: Componente de visualização 2D para o produto Body de Bebê.
 
 import React from 'react';
 
-// A interface de propriedades permanece a mesma, mesmo que 'productColor' não seja mais usado visualmente aqui.
-// Manter a interface consistente simplifica a passagem de props no componente pai.
-interface ViewerProps {
+// Tipagem para as propriedades do componente (reutilizada)
+type ViewerProps = {
   productColor: string;
   uploadedImage: string | null;
   customText: string;
@@ -17,73 +16,54 @@ interface ViewerProps {
   imageOffsetX: number;
   imageOffsetY: number;
   imageRotation: number;
-  textScaleY: number;
-  textOffsetX: number;
-  textOffsetY: number;
-  textRotation: number;
-}
+};
 
 export const ChoppMug2DViewer: React.FC<ViewerProps> = ({
-  // A prop 'productColor' ainda é recebida, mas não é utilizada.
   productColor,
   uploadedImage,
-  customText,
-  textColor,
-  textFont,
-  textSize,
   imageScaleX,
   imageScaleY,
   imageOffsetX,
   imageOffsetY,
   imageRotation,
 }) => {
-  const hasContent = uploadedImage || customText;
-
   return (
-    <div id="viewer-2d-container" className="relative w-full h-full flex items-center justify-center overflow-hidden">
-      {/* Imagem base do produto */}
+    // Container principal que será alvo do html2canvas
+    <div
+      id="viewer-2d-container"
+      className="w-full h-full flex items-center justify-center overflow-hidden relative"
+      style={{ backgroundColor: productColor }} // Aplica a cor de fundo selecionada
+    >
+      {/* Imagem base do body de bebê */}
       <img
-        src="/chopp-mug.png"
-        alt="Caneca de Chopp"
-        className="max-w-full max-h-full object-contain"
-        // O atributo 'style' que aplicava o filtro de cor foi REMOVIDO daqui.
+        src="/chopp-mug.png" // Caminho para a imagem do body na pasta `public`
+        alt="Caneca de Chopps"
+        className="max-w-full max-h-full object-contain pointer-events-none"
       />
 
-      {/* Container para a arte do usuário (imagem ou texto) */}
-      {hasContent && (
-         <div
-         className="absolute"
-         style={{
-           top: '50%',
-           left: '50%',
-           transform: `translate(-50%, -50%) translate(${imageOffsetX}px, ${imageOffsetY}px) scale(${imageScaleX}, ${imageScaleY}) rotate(${imageRotation}deg)`,
-           width: '400px',
-           height: '400px',
-         }}
-       >
-         {uploadedImage && (
-            <div
-              className="w-full h-full bg-contain bg-no-repeat bg-center"
-              style={{
-                backgroundImage: `url(${uploadedImage})`,
-              }}
-            ></div>
-          )}
-
-         {customText && !uploadedImage && (
-           <div
-             className="w-full h-full flex items-center justify-center"
-             style={{
-               color: textColor,
-               fontFamily: textFont,
-               fontSize: `${textSize}px`,
-               textAlign: 'center',
-             }}
-           >
-             {customText}
-           </div>
-         )}
-       </div>
+      {/* Camada de personalização (imagem do usuário) */}
+      {uploadedImage && (
+        <div
+          className="absolute top-1/2 left-1/2"
+          style={{
+            transform: `
+              translateX(-50%) translateY(-50%) 
+              translateX(${imageOffsetX}px) 
+              translateY(${imageOffsetY}px) 
+              scaleX(${imageScaleX}) 
+              scaleY(${imageScaleY}) 
+              rotate(${imageRotation}deg)
+            `,
+            maxWidth: '40%', 
+            maxHeight: '40%',
+          }}
+        >
+          <img
+            src={uploadedImage}
+            alt="Arte personalizada"
+            className="pointer-events-none"
+          />
+        </div>
       )}
     </div>
   );

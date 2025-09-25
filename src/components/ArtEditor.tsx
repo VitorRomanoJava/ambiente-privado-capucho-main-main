@@ -1,3 +1,5 @@
+// src/components/ArtEditor.tsx
+
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import {
   Dialog,
@@ -20,25 +22,7 @@ import {
 import { Slider } from '@/components/ui/slider';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
-import { useIsMobile } from '@/hooks/use-mobile';
-import {
-  Upload,
-  Text,
-  Palette,
-  Type,
-  CaseUpper,
-  Save,
-  RotateCw,
-  ZoomIn,
-  FlipHorizontal,
-  FlipVertical,
-  Ear,
-  Coffee,
-  X,
-  // --- ETAPA 1: Modificação 1 de 4 - Ícone de Download importado ---
-  Download,
-} from 'lucide-react';
-import styles from './ArtEditor.module.css';
+import { Upload, Text, Palette, Type, CaseUpper, Save, RotateCw, ZoomIn, FlipHorizontal, FlipVertical } from 'lucide-react';
 
 // --- PROPS ---
 interface ArtEditorProps {
@@ -64,71 +48,21 @@ const fonts = [
 const CANVAS_WIDTH = 1024;
 const CANVAS_HEIGHT = 1024;
 
-// --- Componente auxiliar para controles Mobile ---
-function MobileControl({
-  label,
-  value,
-  onChange,
-  step,
-  min,
-  max,
-  format,
-}: {
-  label: string;
-  value: number;
-  onChange: (value: number) => void;
-  step: number;
-  min?: number;
-  max?: number;
-  format?: (v: number) => string;
-}) {
-  const handleDecrement = () => {
-    const newValue = Math.max(min ?? -Infinity, value - step);
-    onChange(newValue);
-  };
-  const handleIncrement = () => {
-    const newValue = Math.min(max ?? Infinity, value + step);
-    onChange(newValue);
-  };
-  return (
-    <div className="space-y-2">
-      <Label>{label}</Label>
-      <div className="flex items-center gap-2">
-        <Button variant="outline" size="icon" onClick={handleDecrement}>
-          -
-        </Button>
-        <span className="flex-1 text-center text-sm tabular-nums">
-          {format ? format(value) : value.toFixed(0)}
-        </span>
-        <Button variant="outline" size="icon" onClick={handleIncrement}>
-          +
-        </Button>
-      </div>
-    </div>
-  );
-}
-
 // --- COMPONENTE ---
-export const ArtEditor: React.FC<ArtEditorProps> = ({
-  isOpen,
-  onClose,
-  onSave,
-  initialArt,
-}) => {
+export const ArtEditor: React.FC<ArtEditorProps> = ({ isOpen, onClose, onSave, initialArt }) => {
   const { toast } = useToast();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const isMobile = useIsMobile();
-  const [isSettingsPanelOpen, setSettingsPanelOpen] = useState(false);
+
+  // Estados dos elementos da arte
   const [backgroundImage, setBackgroundImage] = useState<HTMLImageElement | null>(null);
   const [customText, setCustomText] = useState(initialArt?.text || '');
   const [textColor, setTextColor] = useState('#000000');
   const [textFont, setTextFont] = useState(fonts[0].value);
   const [textSize, setTextSize] = useState(100);
-  const [textPosition, setTextPosition] = useState({
-    x: CANVAS_WIDTH / 2,
-    y: CANVAS_HEIGHT / 2,
-  });
+  const [textPosition, setTextPosition] = useState({ x: CANVAS_WIDTH / 2, y: CANVAS_HEIGHT / 2 });
+  
+  // Estados para transformação da imagem
   const [imageScale, setImageScale] = useState(1);
   const [imageRotation, setImageRotation] = useState(0);
   const [imageFlip, setImageFlip] = useState({ horizontal: false, vertical: false });
@@ -142,70 +76,53 @@ export const ArtEditor: React.FC<ArtEditorProps> = ({
       img.src = src;
     });
   }, []);
-
+  
   useEffect(() => {
     if (initialArt?.imageUrl) {
       loadImage(initialArt.imageUrl)
         .then(setBackgroundImage)
         .catch(() => {
-          toast({ title: 'Erro ao carregar imagem inicial', variant: 'destructive' });
+          toast({ title: "Erro ao carregar imagem inicial", variant: "destructive" });
         });
     }
   }, [initialArt, loadImage, toast]);
 
+  // Efeito para desenhar no canvas
   useEffect(() => {
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (!ctx || !canvas) return;
+
     ctx.clearRect(0, 0, canvas.width, canvas.height);
+
     if (backgroundImage) {
       ctx.save();
       ctx.translate(canvas.width / 2, canvas.height / 2);
-      ctx.rotate((imageRotation * Math.PI) / 180);
+      ctx.rotate(imageRotation * Math.PI / 180);
       ctx.scale(imageFlip.horizontal ? -1 : 1, imageFlip.vertical ? -1 : 1);
+      
       const scaledWidth = backgroundImage.width * imageScale;
       const scaledHeight = backgroundImage.height * imageScale;
-      ctx.drawImage(
-        backgroundImage,
-        -scaledWidth / 2,
-        -scaledHeight / 2,
-        scaledWidth,
-        scaledHeight
-      );
+
+      ctx.drawImage(backgroundImage, -scaledWidth / 2, -scaledHeight / 2, scaledWidth, scaledHeight);
       ctx.restore();
     }
+    
     if (customText) {
       const loadAndDraw = async () => {
-        try {
-          const fontSpec = `${textSize}px ${textFont}`;
-          await document.fonts.load(fontSpec);
-          ctx.font = fontSpec;
-          ctx.fillStyle = textColor;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(customText, textPosition.x, textPosition.y);
-        } catch (error) {
-          console.warn("Could not load font before rendering:", error);
-          ctx.font = `${textSize}px ${textFont}`;
-          ctx.fillStyle = textColor;
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
-          ctx.fillText(customText, textPosition.x, textPosition.y);
-        }
+        const fontSpec = `${textSize}px ${textFont}`;
+        // Não é ideal rodar `document.fonts.load` a cada render, mas para este caso é aceitável.
+        // Em uma aplicação complexa, o carregamento de fontes seria gerenciado de forma mais centralizada.
+        await document.fonts.load(fontSpec);
+        ctx.font = fontSpec;
+        ctx.fillStyle = textColor;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillText(customText, textPosition.x, textPosition.y);
       };
       loadAndDraw();
     }
-  }, [
-    backgroundImage,
-    customText,
-    textColor,
-    textFont,
-    textSize,
-    textPosition,
-    imageScale,
-    imageRotation,
-    imageFlip,
-  ]);
+  }, [backgroundImage, customText, textColor, textFont, textSize, textPosition, imageScale, imageRotation, imageFlip]);
 
   const handleImageUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -213,240 +130,101 @@ export const ArtEditor: React.FC<ArtEditorProps> = ({
       setImageScale(1);
       setImageRotation(0);
       setImageFlip({ horizontal: false, vertical: false });
+      
       const reader = new FileReader();
       reader.onloadend = () => {
         loadImage(reader.result as string)
           .then(setBackgroundImage)
-          .catch((err) => console.error('Falha ao carregar a imagem', err));
+          .catch(err => console.error("Falha ao carregar a imagem", err));
       };
       reader.readAsDataURL(file);
     }
   };
-
+  
   const handleSaveClick = () => {
     const canvas = canvasRef.current;
     if (!canvas) {
-      toast({
-        title: 'Erro',
-        description: 'O canvas não foi encontrado.',
-        variant: 'destructive',
-      });
-      return;
+        toast({ title: "Erro", description: "O canvas não foi encontrado.", variant: "destructive"});
+        return;
     }
     const dataUrl = canvas.toDataURL('image/png', 1.0);
     onSave(dataUrl);
     onClose();
   };
 
-  // --- ETAPA 1: Modificação 2 de 4 - Função placeholder adicionada ---
-  const handleDownloadMockup = () => {
-    toast({
-      title: 'Em breve!',
-      description: 'O download do mockup estará disponível em breve.',
-    });
-  };
-
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-4xl h-[80vh] flex flex-col">
-        {isMobile && (
-          <div className="absolute top-4 right-4 z-50 bg-red-500 text-white px-2 py-1 text-xs rounded font-mono">
-            MOBILE
-          </div>
-        )}
-        <DialogHeader>
-          <DialogTitle>Editor de Arte</DialogTitle>
-        </DialogHeader>
-
-        {/* --- ETAPA 1: Modificação 3 de 4 - Barra superior mobile adicionada --- */}
-        <div className={`${styles.mobileTopBar} ${styles.mobileOnly}`}>
-          <span className={styles.mobileTopBarTitle}>Escolha sua arte</span>
-          <div className={styles.mobileTopBarActions}>
-            <Button size="sm" variant="outline" onClick={handleDownloadMockup}>
-              Baixar Mockup
-            </Button>
-            <Button size="sm" onClick={handleSaveClick}>
-              <Download className="w-4 h-4 mr-2" />
-              Baixar Arte
-            </Button>
-          </div>
-        </div>
-
-        <div className={styles.artEditorContainer}>
-          <div className={styles.mobileActionButtons}>
-            <Button
-              size="icon"
-              onClick={() => setSettingsPanelOpen(true)}
-              aria-label="Configurações da arte"
-            >
-              <Ear className="w-5 h-5" />
-            </Button>
-            <Button
-              size="icon"
-              variant="outline"
-              onClick={() => alert('WIP: Mudar produto')}
-              aria-label="Mudar produto"
-            >
-              <Coffee className="w-5 h-5" />
-            </Button>
-          </div>
-
-          <div
-            className={`${styles.settingsPanel} ${
-              isSettingsPanelOpen ? styles.isOpen : ''
-            }`}
-          >
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setSettingsPanelOpen(false)}
-              className={`${styles.closeButton} ${styles.mobileOnly}`}
-              aria-label="Fechar painel"
-            >
-              <X className="w-5 h-5" />
-            </Button>
-
+      {/* AJUSTE: Ocupa mais tela no mobile e mantém o tamanho em telas maiores */}
+      <DialogContent className="max-w-4xl w-[95vw] h-[90vh] max-h-[90vh] flex flex-col">
+        <DialogHeader><DialogTitle>Editor de Arte</DialogTitle></DialogHeader>
+        
+        {/* AJUSTE: Layout flexível - vertical no mobile (flex-col), grid no desktop (md:grid) */}
+        <div className="flex flex-col md:grid md:grid-cols-3 gap-4 md:gap-6 flex-1 overflow-hidden">
+          
+          {/* AJUSTE: Ordem trocada para mobile (order-2) e desktop (md:order-1) */}
+          <div className="md:col-span-1 flex flex-col space-y-4 overflow-y-auto p-1 md:pr-2 order-2 md:order-1">
             <Tabs defaultValue="image" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="image">
-                  <Upload className="w-4 h-4 mr-2" /> Fundo
-                </TabsTrigger>
-                <TabsTrigger value="text">
-                  <Text className="w-4 h-4 mr-2" /> Texto
-                </TabsTrigger>
+                {/* AJUSTE: Ícones maiores */}
+                <TabsTrigger value="image"><Upload className="w-5 h-5 mr-2" /> Fundo</TabsTrigger>
+                <TabsTrigger value="text"><Text className="w-5 h-5 mr-2" /> Texto</TabsTrigger>
               </TabsList>
               
-              {/* O conteúdo das abas permanece o mesmo */}
               <TabsContent value="image" className="pt-4 space-y-4">
                 <div className="space-y-2">
-                  <Label>Imagem de Fundo</Label>
-                  <Button
-                    variant="outline"
-                    className="w-full"
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Upload className="w-4 h-4 mr-2" /> Escolher Arquivo
-                  </Button>
-                  <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleImageUpload}
-                    className="hidden"
-                    accept="image/png, image/jpeg"
-                  />
+                    <Label>Imagem de Fundo</Label>
+                    <Button variant="outline" className="w-full" onClick={() => fileInputRef.current?.click()}>
+                        <Upload className="w-5 h-5 mr-2"/> Escolher Arquivo
+                    </Button>
+                    <input type="file" ref={fileInputRef} onChange={handleImageUpload} className="hidden" accept="image/png, image/jpeg"/>
                 </div>
+
                 {backgroundImage && (
                   <div className="space-y-4 pt-4 border-t">
-                    {isMobile ? (
-                      <>
-                        <MobileControl
-                          label="Tamanho"
-                          value={imageScale}
-                          onChange={setImageScale}
-                          step={0.05}
-                          min={0.1}
-                          max={3}
-                          format={(v) => `${Math.round(v * 100)}%`}
-                        />
-                        <MobileControl
-                          label="Rotação"
-                          value={imageRotation}
-                          onChange={setImageRotation}
-                          step={5}
-                          min={0}
-                          max={360}
-                          format={(v) => `${v}°`}
-                        />
-                      </>
-                    ) : (
-                      <>
-                        <div className="space-y-2">
-                          <Label className="flex justify-between items-center">
-                            <span className="flex items-center">
-                              <ZoomIn className="w-4 h-4 mr-2" /> Tamanho
-                            </span>
-                            <span>{Math.round(imageScale * 100)}%</span>
-                          </Label>
-                          <Slider
-                            value={[imageScale]}
-                            onValueChange={(v) => setImageScale(v[0])}
-                            min={0.1}
-                            max={3}
-                            step={0.05}
-                          />
-                        </div>
-                        <div className="space-y-2">
-                          <Label className="flex justify-between items-center">
-                            <span className="flex items-center">
-                              <RotateCw className="w-4 h-4 mr-2" /> Rotação
-                            </span>
-                            <span>{imageRotation}°</span>
-                          </Label>
-                          <Slider
-                            value={[imageRotation]}
-                            onValueChange={(v) => setImageRotation(v[0])}
-                            min={0}
-                            max={360}
-                            step={1}
-                          />
-                        </div>
-                      </>
-                    )}
+                    <div className="space-y-2">
+                        <Label className='flex justify-between items-center'>
+                          <span className="flex items-center"><ZoomIn className="w-5 h-5 mr-2" /> Tamanho</span>
+                          <span>{Math.round(imageScale * 100)}%</span>
+                        </Label>
+                        <Slider value={[imageScale]} onValueChange={(v) => setImageScale(v[0])} min={0.1} max={3} step={0.05} />
+                    </div>
+                    <div className="space-y-2">
+                        <Label className='flex justify-between items-center'>
+                          <span className="flex items-center"><RotateCw className="w-5 h-5 mr-2" /> Rotação</span>
+                          <span>{imageRotation}°</span>
+                        </Label>
+                        <Slider value={[imageRotation]} onValueChange={(v) => setImageRotation(v[0])} min={0} max={360} step={1} />
+                    </div>
                     <div className="space-y-2">
                       <Label>Espelhar</Label>
                       <div className="grid grid-cols-2 gap-2">
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            setImageFlip((f) => ({ ...f, horizontal: !f.horizontal }))
-                          }
-                        >
-                          <FlipHorizontal className="w-4 h-4 mr-2" /> Horizontal
+                        <Button variant="outline" onClick={() => setImageFlip(f => ({ ...f, horizontal: !f.horizontal }))}>
+                          <FlipHorizontal className="w-5 h-5 mr-2"/> Horizontal
                         </Button>
-                        <Button
-                          variant="outline"
-                          onClick={() =>
-                            setImageFlip((f) => ({ ...f, vertical: !f.vertical }))
-                          }
-                        >
-                          <FlipVertical className="w-4 h-4 mr-2" /> Vertical
+                        <Button variant="outline" onClick={() => setImageFlip(f => ({ ...f, vertical: !f.vertical }))}>
+                          <FlipVertical className="w-5 h-5 mr-2"/> Vertical
                         </Button>
                       </div>
                     </div>
                   </div>
                 )}
               </TabsContent>
+
               <TabsContent value="text" className="space-y-4 pt-4">
                 <div className="space-y-2">
                   <Label htmlFor="custom-text">Texto (opcional)</Label>
-                  <Input
-                    id="custom-text"
-                    placeholder="Digite aqui..."
-                    value={customText}
-                    onChange={(e) => setCustomText(e.target.value)}
-                  />
+                  <Input id="custom-text" placeholder="Digite aqui..." value={customText} onChange={(e) => setCustomText(e.target.value)} />
                 </div>
                 <div className="space-y-2">
-                  <Label className="flex items-center">
-                    <Palette className="w-4 h-4 mr-2" /> Cor
-                  </Label>
-                  <Input
-                    type="color"
-                    value={textColor}
-                    onChange={(e) => setTextColor(e.target.value)}
-                    className="p-0 h-10 w-full cursor-pointer"
-                  />
+                  <Label className='flex items-center'><Palette className="w-5 h-5 mr-2" /> Cor</Label>
+                  <Input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="p-0 h-10 w-full cursor-pointer"/>
                 </div>
                 <div className="space-y-2">
-                  <Label className="flex items-center">
-                    <Type className="w-4 h-4 mr-2" /> Fonte
-                  </Label>
+                  <Label className='flex items-center'><Type className="w-5 h-5 mr-2" /> Fonte</Label>
                   <Select value={textFont} onValueChange={setTextFont}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
+                    <SelectTrigger><SelectValue/></SelectTrigger>
                     <SelectContent>
-                      {fonts.map((font) => (
+                      {fonts.map(font => (
                         <SelectItem key={font.name} value={font.value}>
                           <span style={{ fontFamily: font.value }}>{font.name}</span>
                         </SelectItem>
@@ -454,108 +232,50 @@ export const ArtEditor: React.FC<ArtEditorProps> = ({
                     </SelectContent>
                   </Select>
                 </div>
-                {isMobile ? (
-                  <>
-                    <MobileControl
-                      label="Tamanho do Texto"
-                      value={textSize}
-                      onChange={setTextSize}
-                      step={5}
-                      min={20}
-                      max={300}
-                      format={(v) => `${v}px`}
-                    />
-                    <MobileControl
-                      label="Posição X"
-                      value={textPosition.x}
-                      onChange={(val) => setTextPosition((p) => ({ ...p, x: val }))}
-                      step={10}
-                      min={0}
-                      max={CANVAS_WIDTH}
-                    />
-                    <MobileControl
-                      label="Posição Y"
-                      value={textPosition.y}
-                      onChange={(val) => setTextPosition((p) => ({ ...p, y: val }))}
-                      step={10}
-                      min={0}
-                      max={CANVAS_HEIGHT}
-                    />
-                  </>
-                ) : (
-                  <>
-                    <div className="space-y-2">
-                      <Label className="flex justify-between items-center">
-                        <span className="flex items-center">
-                          <CaseUpper className="w-4 h-4 mr-2" /> Tamanho
-                        </span>
-                        <span>{textSize}px</span>
-                      </Label>
-                      <Slider
-                        value={[textSize]}
-                        onValueChange={(v) => setTextSize(v[0])}
-                        min={20}
-                        max={300}
-                        step={2}
-                      />
-                    </div>
-                    <div className="space-y-2 pt-2 border-t">
-                      <Label>Posição do Texto (X)</Label>
-                      <Slider
-                        value={[textPosition.x]}
-                        onValueChange={(v) =>
-                          setTextPosition((p) => ({ ...p, x: v[0] }))
-                        }
-                        min={0}
-                        max={CANVAS_WIDTH}
-                        step={5}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label>Posição do Texto (Y)</Label>
-                      <Slider
-                        value={[textPosition.y]}
-                        onValueChange={(v) =>
-                          setTextPosition((p) => ({ ...p, y: v[0] }))
-                        }
-                        min={0}
-                        max={CANVAS_HEIGHT}
-                        step={5}
-                      />
-                    </div>
-                  </>
-                )}
+                <div className="space-y-2">
+                  <Label className='flex justify-between items-center'>
+                    <span className="flex items-center"><CaseUpper className="w-5 h-5 mr-2" /> Tamanho</span>
+                    <span>{textSize}px</span>
+                  </Label>
+                  <Slider value={[textSize]} onValueChange={(v) => setTextSize(v[0])} min={20} max={300} step={2} />
+                </div>
+                <div className="space-y-2 pt-2 border-t">
+                  <Label>Posição do Texto (X)</Label>
+                  <Slider value={[textPosition.x]} onValueChange={(v) => setTextPosition(p => ({...p, x: v[0]}))} min={0} max={CANVAS_WIDTH} step={5}/>
+                </div>
+                <div className="space-y-2">
+                  <Label>Posição do Texto (Y)</Label>
+                  <Slider value={[textPosition.y]} onValueChange={(v) => setTextPosition(p => ({...p, y: v[0]}))} min={0} max={CANVAS_HEIGHT} step={5}/>
+                </div>
               </TabsContent>
             </Tabs>
           </div>
-
-          <div className={styles.canvasContainer}>
+          
+          {/* AJUSTE: Ordem trocada para mobile (order-1) e desktop (md:order-2) */}
+          <div className="md:col-span-2 bg-white rounded-lg flex items-center justify-center p-2 order-1 md:order-2 min-h-0">
             <canvas
               ref={canvasRef}
               width={CANVAS_WIDTH}
               height={CANVAS_HEIGHT}
               className="w-full h-full object-contain"
-              style={{
-                background: `
+              style={{ background: `
                 linear-gradient(45deg, rgba(0,0,0,0.098) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.098) 75%),
                 linear-gradient(45deg, rgba(0,0,0,0.098) 25%, transparent 25%, transparent 75%, rgba(0,0,0,0.098) 75%)
                 0px 0px / 20px 20px,
-                rgb(255, 255, 255)`,
+                rgb(255, 255, 255)`
               }}
             />
           </div>
         </div>
-
-        {/* --- ETAPA 1: Modificação 4 de 4 - Rodapé agora oculto em mobile --- */}
-        <DialogFooter className={`mt-4 ${styles.desktopOnly}`}>
-          <DialogClose asChild>
-            <Button type="button" variant="secondary">
-              Cancelar
+        
+        {/* AJUSTE: Botões empilhados no mobile (flex-col-reverse), lado a lado no desktop (sm:flex-row) */}
+        <DialogFooter className="mt-4 flex flex-col-reverse sm:flex-row sm:justify-end gap-2 sm:space-x-2">
+            <DialogClose asChild>
+                <Button type="button" variant="secondary" className="w-full sm:w-auto">Cancelar</Button>
+            </DialogClose>
+            <Button type="button" onClick={handleSaveClick} className="w-full sm:w-auto">
+                <Save className="w-5 h-5 mr-2"/> Salvar Arte
             </Button>
-          </DialogClose>
-          <Button type="button" onClick={handleSaveClick}>
-            <Save className="w-4 h-4 mr-2" /> Salvar Arte
-          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

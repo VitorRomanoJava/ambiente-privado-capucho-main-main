@@ -67,7 +67,7 @@ const Header = () => {
               <Instagram className="h-6 w-6" />
             </a>
             <a
-              href="https://www.facebook.com/capuchopersonalizados"
+              href="https://www.facebook.com/Capuchobrindesbrasil"
               target="_blank"
               rel="noopener noreferrer"
               aria-label="Facebook da Capucho"

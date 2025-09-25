@@ -1,3 +1,5 @@
+// Caminho: src/pages/Index.tsx
+
 import { Button } from "@/components/ui/button";
 import Header from "@/components/layout/header";
 import MockupGenerator from "@/components/MockupGenerator";
